@@ -1,0 +1,369 @@
+/**
+ * @file script.html (originally script.js)
+ * @description Client-side JavaScript for the Web App.
+ * Handles form interactions, data fetching, and UI updates.
+ * Wrapped in <script> tags for proper HTML inclusion.
+ */
+<script>
+// DOM Elements
+const caRequestForm = document.getElementById('caRequestForm');
+const recordIdField = document.getElementById('recordId');
+const dateField = document.getElementById('date');
+const numberField = document.getElementById('number');
+const auditorEmailField = document.getElementById('auditorEmail');
+const auditorNameField = document.getElementById('auditorName');
+const auditeeField = document.getElementById('auditee');
+const auditeeEmailField = document.getElementById('auditeeEmail');
+const typeField = document.getElementById('type');
+const levelField = document.getElementById('level');
+const requirementField = document.getElementById('requirement');
+const detailsField = document.getElementById('details');
+const attachFileField = document.getElementById('attachFile');
+const updateTimestampField = document.getElementById('updateTimestamp');
+
+const submitBtn = document.getElementById('submitBtn');
+const cancelEditBtn = document.getElementById('cancelEditBtn');
+const recordsList = document.getElementById('recordsList');
+const searchInput = document.getElementById('searchInput');
+const clearSearchBtn = document.getElementById('clearSearchBtn');
+const loadingMessage = document.querySelector('.loading-message');
+
+let allRecords = []; // Store all fetched records for filtering/searching
+
+// --- Helper Functions ---
+
+/**
+ * Shows a SweetAlert2 notification with Instagram-like styling.
+ * @param {string} title The title of the alert.
+ * @param {string} text The message content of the alert.
+ * @param {string} icon The icon type ('success', 'error', 'warning', 'info', 'question').
+ */
+function showAlert(title, text, icon) {
+  Swal.fire({
+    title: title,
+    text: text,
+    icon: icon,
+    customClass: {
+      confirmButton: 'swal2-confirm swal2-styled', // Apply custom styling to confirm button
+      cancelButton: 'swal2-cancel swal2-styled' // Apply custom styling to cancel button
+    },
+    buttonsStyling: false // Disable default SweetAlert styling for buttons
+  });
+}
+
+/**
+ * Displays a loading state on the UI.
+ * @param {boolean} show Whether to show or hide the loading state.
+ */
+function showLoading(show) {
+  if (loadingMessage) {
+    loadingMessage.style.display = show ? 'block' : 'none';
+  }
+  // Disable form elements or buttons if needed
+  caRequestForm.querySelectorAll('input, select, textarea, button').forEach(el => {
+    el.disabled = show;
+  });
+}
+
+/**
+ * Clears the form fields and resets to default state (for new entry).
+ */
+function clearForm() {
+  caRequestForm.reset();
+  recordIdField.value = ''; // Clear hidden ID field
+  updateTimestampField.value = ''; // Clear update timestamp
+  submitBtn.innerHTML = '<i class="fas fa-save"></i> บันทึกข้อมูล';
+  submitBtn.classList.remove('btn-edit'); // Remove edit style if present
+  cancelEditBtn.style.display = 'none';
+  // Re-fetch initial app data to get the latest auditor email, date, and next number
+  google.script.run.withSuccessHandler(initialData => {
+    if (initialData.success) {
+      auditorEmailField.value = initialData.auditorEmail;
+      dateField.value = initialData.currentDate;
+      numberField.value = initialData.nextNumber;
+    } else {
+      showAlert('เกิดข้อผิดพลาด', initialData.message, 'error');
+      auditorEmailField.value = 'ไม่สามารถโหลดอีเมลได้';
+      dateField.value = 'ไม่สามารถโหลดวันที่ได้';
+      numberField.value = 'ไม่สามารถสร้างหมายเลขได้';
+    }
+  }).withFailureHandler(error => {
+    showAlert('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลเริ่มต้นได้: ' + error.message, 'error');
+    console.error('Error in clearForm loading initial data:', error);
+  }).getInitialAppData();
+}
+
+/**
+ * Populates the form with data of a selected record for editing.
+ * @param {Object} record The record object to populate the form with.
+ */
+function populateFormForEdit(record) {
+  recordIdField.value = record.id; // Store row ID for updating
+  dateField.value = record['Date'];
+  numberField.value = record['number'];
+  auditorNameField.value = record['Auditor Name'];
+  auditorEmailField.value = record['Auditor email'];
+  auditeeField.value = record['Auditee'];
+  auditeeEmailField.value = record['Auditee email'];
+  typeField.value = record['ประเภท'];
+  levelField.value = record['Level'];
+  requirementField.value = record['Requirement'];
+  detailsField.value = record['รายละเอียดที่ขอให้แก้ไข/ป้องกัน'];
+  attachFileField.value = record['แนบไฟล์'];
+  updateTimestampField.value = record['Update'];
+
+  submitBtn.innerHTML = '<i class="fas fa-edit"></i> อัปเดตข้อมูล';
+  submitBtn.classList.add('btn-edit'); // Add a visual cue for edit mode
+  cancelEditBtn.style.display = 'inline-block';
+  // Scroll to top of the form
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/**
+ * Renders the list of records to the UI.
+ * @param {Array<Object>} records An array of record objects to display.
+ */
+function renderRecords(records) {
+  recordsList.innerHTML = ''; // Clear existing records
+  if (records.length === 0) {
+    recordsList.innerHTML = '<p class="loading-message">ไม่พบข้อมูลคำขอ</p>';
+    return;
+  }
+
+  records.forEach(record => {
+    const recordItem = document.createElement('div');
+    recordItem.className = 'record-item';
+    recordItem.setAttribute('data-id', record.id); // Add data-id for easy lookup
+
+    recordItem.innerHTML = `
+      <div class="record-header">
+        <span class="record-number">${record['number']}</span>
+        <span class="record-date">วันที่: ${record['Date']}</span>
+      </div>
+      <div class="record-details">
+        <p><strong>ผู้แจ้ง:</strong> ${record['Auditor Name']} (${record['Auditor email']})</p>
+        <p><strong>หน่วยงาน (Auditee):</strong> ${record['Auditee']} (${record['Auditee email']})</p>
+        <p><strong>ประเภท:</strong> ${record['ประเภท']}</p>
+        <p><strong>ระดับ:</strong> <span style="color: ${getPriorityColor(record['Level'])}">${record['Level']}</span></p>
+        <p><strong>Requirement:</strong> ${record['Requirement'] || '-'}</p>
+        <p><strong>รายละเอียด:</strong> ${record['รายละเอียดที่ขอให้แก้ไข/ป้องกัน']}</p>
+        <p><strong>แนบไฟล์:</strong> ${record['แนบไฟล์'] || '-'}</p>
+        <p><strong>อัปเดตล่าสุด:</strong> ${record['Update'] || '-'}</p>
+      </div>
+      <div class="record-actions">
+        <button class="btn btn-edit btn-small" onclick="editRecord('${record.id}')">
+          <i class="fas fa-edit"></i> แก้ไข
+        </button>
+        <button class="btn btn-danger btn-small" onclick="confirmDeleteRecord('${record.id}')">
+          <i class="fas fa-trash-alt"></i> ลบ
+        </button>
+      </div>
+    `;
+    recordsList.appendChild(recordItem);
+  });
+}
+
+/**
+ * Returns a color based on the priority level.
+ * @param {string} level The level string (e.g., 'Critical', 'Minor').
+ * @returns {string} The CSS color string.
+ */
+function getPriorityColor(level) {
+  switch (level) {
+    case 'Critical': return '#ED4956'; // Instagram red
+    case 'Major': return '#F5A623'; // Orange
+    case 'Minor': return '#FFC107'; // Yellow
+    case 'PNC': return '#9B59B6'; // Purple
+    case 'OFI': return '#0095F6'; // Instagram blue
+    default: return '#262626';
+  }
+}
+
+/**
+ * Filters and renders records based on search input.
+ */
+function filterRecords() {
+  const searchTerm = searchInput.value.toLowerCase().trim();
+  if (searchTerm === '') {
+    renderRecords(allRecords);
+    clearSearchBtn.style.display = 'none';
+    return;
+  }
+  clearSearchBtn.style.display = 'inline-block';
+
+  const filteredRecords = allRecords.filter(record => {
+    // Search across relevant fields
+    return (record['Auditor Name'] && record['Auditor Name'].toLowerCase().includes(searchTerm)) ||
+           (record['number'] && record['number'].toLowerCase().includes(searchTerm)) ||
+           (record['Auditee'] && record['Auditee'].toLowerCase().includes(searchTerm));
+  });
+  renderRecords(filteredRecords);
+}
+
+// --- Event Listeners and Callbacks ---
+
+/**
+ * Handles the form submission (either new record or update).
+ */
+caRequestForm.addEventListener('submit', function(event) {
+  event.preventDefault(); // Prevent default form submission
+
+  const formData = {};
+  new FormData(caRequestForm).forEach((value, key) => {
+    formData[key] = value;
+  });
+
+  // Basic validation for Auditee email
+  if (!/^[\w.-]+@([\w-]+\.)+[\w-]{2,4}$/.test(formData['Auditee email'])) {
+    showAlert('ข้อมูลไม่ถูกต้อง', 'กรุณากรอกรูปแบบอีเมลหน่วยงาน (Auditee) ให้ถูกต้อง', 'warning');
+    return;
+  }
+  
+  showLoading(true);
+
+  // Call Google Apps Script function
+  google.script.run
+    .withSuccessHandler(response => {
+      showLoading(false);
+      if (response.success) {
+        showAlert('สำเร็จ!', response.message, 'success');
+        clearForm(); // Clear form after successful submission
+        loadAllRecords(); // Reload records list
+      } else {
+        showAlert('เกิดข้อผิดพลาด', response.message, 'error');
+      }
+    })
+    .withFailureHandler(error => {
+      showLoading(false);
+      showAlert('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้: ' + error.message, 'error');
+      console.error('Error submitting form:', error);
+    })
+    .processForm(formData);
+});
+
+/**
+ * Handles editing a record.
+ * @param {string} recordId The ID (row index) of the record to edit.
+ */
+function editRecord(recordId) {
+  const recordToEdit = allRecords.find(r => r.id == recordId);
+  if (recordToEdit) {
+    populateFormForEdit(recordToEdit);
+  } else {
+    showAlert('ไม่พบข้อมูล', 'ไม่พบข้อมูลที่ต้องการแก้ไข โปรดลองอีกครั้ง', 'error');
+  }
+}
+
+/**
+ * Confirms deletion of a record with SweetAlert and then calls server function.
+ * @param {string} recordId The ID (row index) of the record to delete.
+ */
+function confirmDeleteRecord(recordId) {
+  Swal.fire({
+    title: 'คุณแน่ใจหรือไม่?',
+    text: "คุณต้องการลบข้อมูลนี้ใช่หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้!",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'ใช่, ลบเลย!',
+    cancelButtonText: 'ยกเลิก',
+    reverseButtons: true, // Make confirm button appear first
+    customClass: {
+      confirmButton: 'swal2-confirm swal2-styled btn-danger', // Apply custom styling to confirm button
+      cancelButton: 'swal2-cancel swal2-styled btn-secondary' // Apply custom styling to cancel button
+    },
+    buttonsStyling: false // Disable default SweetAlert styling for buttons
+  }).then((result) => {
+    if (result.isConfirmed) {
+      showLoading(true);
+      google.script.run
+        .withSuccessHandler(response => {
+          showLoading(false);
+          if (response.success) {
+            showAlert('ลบสำเร็จ!', response.message, 'success');
+            loadAllRecords(); // Reload records list
+            clearForm(); // Clear form just in case the deleted record was in edit mode
+          } else {
+            showAlert('เกิดข้อผิดพลาด', response.message, 'error');
+          }
+        })
+        .withFailureHandler(error => {
+          showLoading(false);
+          showAlert('เกิดข้อผิดพลาด', 'ไม่สามารถลบข้อมูลได้: ' + error.message, 'error');
+          console.error('Error deleting record:', error);
+        })
+        .deleteRecord(parseInt(recordId));
+    }
+  });
+}
+
+/**
+ * Loads all records from Google Sheet and renders them.
+ */
+function loadAllRecords() {
+  showLoading(true);
+  google.script.run
+    .withSuccessHandler(response => {
+      showLoading(false);
+      if (response.success) {
+        allRecords = response.records; // Store all records
+        renderRecords(allRecords); // Render them initially
+        filterRecords(); // Apply any existing search filter
+      } else {
+        showAlert('เกิดข้อผิดพลาด', response.message, 'error');
+        recordsList.innerHTML = `<p class="loading-message error-message">${response.message}</p>`;
+      }
+    })
+    .withFailureHandler(error => {
+      showLoading(false);
+      showAlert('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลได้: ' + error.message, 'error');
+      console.error('Error loading records:', error);
+      recordsList.innerHTML = `<p class="loading-message error-message">ไม่สามารถโหลดข้อมูลได้ในขณะนี้: ${error.message}</p>`;
+    })
+    .getAllRecords();
+}
+
+// Event listener for cancelling edit mode
+cancelEditBtn.addEventListener('click', clearForm);
+
+// Event listener for search input
+searchInput.addEventListener('input', filterRecords);
+
+// Event listener for clearing search
+clearSearchBtn.addEventListener('click', () => {
+  searchInput.value = '';
+  filterRecords(); // Re-render all records
+});
+
+// --- Initialization on Page Load ---
+document.addEventListener('DOMContentLoaded', function() {
+  showLoading(true);
+  // Get initial app data (auditor email, current date, next number)
+  google.script.run
+    .withSuccessHandler(initialData => {
+      showLoading(false);
+      if (initialData.success) {
+        auditorEmailField.value = initialData.auditorEmail;
+        dateField.value = initialData.currentDate;
+        numberField.value = initialData.nextNumber;
+      } else {
+        showAlert('เกิดข้อผิดพลาด', initialData.message, 'error');
+        // Set placeholder values if initial data fails to load
+        auditorEmailField.value = 'ไม่สามารถโหลดอีเมลได้';
+        dateField.value = 'ไม่สามารถโหลดวันที่ได้';
+        numberField.value = 'ไม่สามารถสร้างหมายเลขได้';
+      }
+      loadAllRecords(); // Load all existing records once initial data is set
+    })
+    .withFailureHandler(error => {
+      showLoading(false);
+      showAlert('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลเริ่มต้นของแอปได้: ' + error.message, 'error');
+      console.error('Error loading initial app data:', error);
+      // Set placeholder values if initial data fails to load
+      auditorEmailField.value = 'เกิดข้อผิดพลาด';
+      dateField.value = 'เกิดข้อผิดพลาด';
+      numberField.value = 'เกิดข้อผิดพลาด';
+      loadAllRecords(); // Still try to load records even if initial app data fails
+    })
+    .getInitialAppData();
+});
+</script>
