@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CA Request Form</title>
+
+  <!-- Google Fonts: Kanit -->
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
+  <!-- Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  
+  <!-- SweetAlert2 CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.12.0/dist/sweetalert2.min.css">
+
+  <!-- Custom CSS -->
+  <?!= include('style'); ?>
+</head>
+<body>
+  <div class="container">
+    <header class="app-header">
+      <div class="header-content">
+        <h1 class="header-title">CA Request</h1>
+        <i class="fas fa-camera header-icon"></i>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <div class="form-card">
+        <h2 class="card-title">แบบฟอร์มคำขอแก้ไข/ป้องกัน (CA)</h2>
+        <form id="caRequestForm">
+          <input type="hidden" id="recordId" name="id">
+
+          <div class="form-group">
+            <label for="date">วันที่:</label>
+            <input type="text" id="date" name="Date" class="input-field" readonly>
+          </div>
+
+          <div class="form-group">
+            <label for="number">หมายเลขคำขอ:</label>
+            <input type="text" id="number" name="number" class="input-field" readonly>
+          </div>
+
+          <div class="form-group">
+            <label for="auditorName">ชื่อผู้แจ้ง:</label>
+            <input type="text" id="auditorName" name="Auditor Name" class="input-field" placeholder="กรอกชื่อผู้แจ้ง" required>
+          </div>
+
+          <div class="form-group">
+            <label for="auditorEmail">อีเมลผู้แจ้ง:</label>
+            <input type="email" id="auditorEmail" name="Auditor email" class="input-field" readonly>
+          </div>
+
+          <div class="form-group">
+            <label for="auditee">หน่วยงาน/Auditee:</label>
+            <select id="auditee" name="Auditee" class="input-field" required>
+              <option value="">-- เลือกหน่วยงาน --</option>
+              <option value="SA">SA</option>
+              <option value="RD">RD</option>
+              <option value="PL">PL</option>
+              <option value="PD">PD</option>
+              <option value="QC">QC</option>
+              <option value="QA">QA</option>
+              <option value="QS">QS</option>
+              <option value="WH">WH</option>
+              <option value="WM">WM</option>
+              <option value="IT">IT</option>
+              <option value="OHS">OHS</option>
+              <option value="EMC">EMC</option>
+              <option value="EAC">EAC</option>
+              <option value="EUT1">EUT1</option>
+              <option value="EUT2">EUT2</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="auditeeEmail">อีเมลหน่วยงาน (Auditee):</label>
+            <input type="email" id="auditeeEmail" name="Auditee email" class="input-field" placeholder="กรอกอีเมลหน่วยงาน" required>
+          </div>
+
+          <div class="form-group">
+            <label for="type">ประเภท:</label>
+            <select id="type" name="ประเภท" class="input-field" required>
+              <option value="">-- เลือกประเภท --</option>
+              <option value="Internal audit">Internal audit</option>
+              <option value="Customer audit">Customer audit</option>
+              <option value="Authorities audit">Authorities audit</option>
+              <option value="CB audit">CB audit</option>
+              <option value="System failure">System failure</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="level">ระดับความสำคัญ:</label>
+            <select id="level" name="Level" class="input-field" required>
+              <option value="">-- เลือกระดับความสำคัญ --</option>
+              <option value="Critical">Critical</option>
+              <option value="Major">Major</option>
+              <option value="Minor">Minor</option>
+              <option value="PNC">PNC</option>
+              <option value="OFI">OFI</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="requirement">Requirement (ระบุหรือไม่ก็ได้):</label>
+            <input type="text" id="requirement" name="Requirement" class="input-field" placeholder="เช่น QP-DC-01">
+          </div>
+
+          <div class="form-group">
+            <label for="details">รายละเอียดที่ขอให้แก้ไข/ป้องกัน:</label>
+            <textarea id="details" name="รายละเอียดที่ขอให้แก้ไข/ป้องกัน" class="input-field textarea-field" rows="4" placeholder="กรอกรายละเอียด..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="attachFile">แนบไฟล์ (ลิงก์ หรือ ข้อความยืนยัน):</label>
+            <input type="text" id="attachFile" name="แนบไฟล์" class="input-field" placeholder="วางลิงก์ไฟล์ หรือ พิมพ์ 'มีไฟล์แนบ'">
+          </div>
+          
+          <div class="form-group">
+            <label for="updateTimestamp">อัปเดตล่าสุด:</label>
+            <input type="text" id="updateTimestamp" name="Update" class="input-field" readonly>
+          </div>
+
+          <div class="form-buttons">
+            <button type="submit" class="btn btn-primary" id="submitBtn">
+              <i class="fas fa-save"></i> บันทึกข้อมูล
+            </button>
+            <button type="button" class="btn btn-secondary" id="cancelEditBtn" style="display: none;">
+              <i class="fas fa-times"></i> ยกเลิกการแก้ไข
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="records-section">
+        <h2 class="card-title">รายการคำขอทั้งหมด</h2>
+        <div class="search-bar">
+          <input type="text" id="searchInput" class="input-field" placeholder="ค้นหาตามชื่อผู้แจ้ง, หมายเลขคำขอ หรือหน่วยงาน...">
+          <button id="clearSearchBtn" class="btn btn-clear-search" style="display: none;">
+            <i class="fas fa-times"></i> ล้างการค้นหา
+          </button>
+        </div>
+        <div id="recordsList" class="records-list">
+          <!-- Records will be loaded here by JavaScript -->
+          <p class="loading-message">กำลังโหลดข้อมูล...</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- SweetAlert2 JS -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.12.0/dist/sweetalert2.all.min.js"></script>
+
+  <!-- Custom JavaScript -->
+  <?!= include('script'); ?>
+</body>
+</html>
+
